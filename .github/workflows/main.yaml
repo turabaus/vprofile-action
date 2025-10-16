@@ -18,24 +18,20 @@ jobs:
           echo "SONAR_URL: ${{ secrets.SONAR_URL }}"
           echo "SONAR_ORGANIZATION: ${{ secrets.SONAR_ORGANIZATION }}"
           echo "SONAR_PROJECT_KEY from secret: ${{ secrets.SONAR_PROJECT_KEY }}"
-          echo "Using hardcoded project key: vprofile-actions4u2"
+          echo "Using actual project key: vproapp24"
           echo "SONAR_TOKEN exists: $([ ! -z '${{ secrets.SONAR_TOKEN }}' ] && echo 'YES' || echo 'NO')"
 
       - name: Check if project exists
         run: |
-          echo "Checking if project vprofile-actions4u2 exists in organization ${{ secrets.SONAR_ORGANIZATION }}..."
+          echo "Checking if project vproapp24 exists in organization ${{ secrets.SONAR_ORGANIZATION }}..."
           response=$(curl -s -u "${{ secrets.SONAR_TOKEN }}:" \
-            "https://sonarcloud.io/api/projects/search?projects=vprofile-actions4u2")
+            "https://sonarcloud.io/api/projects/search?projects=vproapp24")
           echo "API Response: $response"
           
           if echo "$response" | grep -q '"total":1'; then
-            echo "✅ Project vprofile-actions4u2 exists and is accessible"
+            echo "✅ Project vproapp24 exists and is accessible"
           else
-            echo "❌ Project vprofile-actions4u2 does not exist or cannot be accessed"
-            echo "Please verify:"
-            echo "1. Project was created with key: vprofile-actions4u2"
-            echo "2. Token has access to organization: ${{ secrets.SONAR_ORGANIZATION }}"
-            echo "3. Visit: https://sonarcloud.io/project/overview?id=vprofile-actions4u2"
+            echo "❌ Project vproapp24 does not exist or cannot be accessed"
             exit 1
           fi
 
@@ -73,13 +69,13 @@ jobs:
 
       - name: SonarQube Scan
         run: |
-          echo "Running SonarQube analysis for project: vprofile-actions4u2"
+          echo "Running SonarQube analysis for project: vproapp24"
           sonar-scanner \
             -Dsonar.host.url=${{ secrets.SONAR_URL }} \
             -Dsonar.login=${{ secrets.SONAR_TOKEN }} \
             -Dsonar.organization=${{ secrets.SONAR_ORGANIZATION }} \
-            -Dsonar.projectKey=vprofile-actions4u \
-            -Dsonar.projectName="vprofile-actions4u" \
+            -Dsonar.projectKey=vproapp24 \
+            -Dsonar.projectName="VProfile Application" \
             -Dsonar.projectVersion=1.0 \
             -Dsonar.sources=src/main/java \
             -Dsonar.tests=src/test/java \
