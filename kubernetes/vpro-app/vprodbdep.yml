@@ -26,6 +26,13 @@ spec:
              secretKeyRef:
                name: app-secret
                key: db-pass
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "500m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
 #        env:
 #         - name: MYSQL_ROOT_PASSWORD
 #           value: "vprodbpass"
