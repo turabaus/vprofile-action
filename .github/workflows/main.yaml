@@ -33,10 +33,18 @@ jobs:
         env:
           MAVEN_OPTS: -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=WARN
 
+      - name: Verify test reports exist
+        run: |
+          echo "Checking for test reports..."
+          ls -la target/
+          ls -la target/surefire-reports/ || echo "No surefire-reports directory"
+          ls -la target/site/jacoco/ || echo "No jacoco directory"
+          [ -f target/jacoco.exec ] && echo "jacoco.exec exists" || echo "jacoco.exec missing"
+
       - name: Setup SonarQube Scanner
         uses: warchant/setup-sonar-scanner@v7
 
-      - name: SonarQube Scan
+      - name: SonarQube Scan (with debug)
         run: |
           sonar-scanner \
             -Dsonar.host.url=${{ secrets.SONAR_URL }} \
@@ -44,20 +52,24 @@ jobs:
             -Dsonar.organization=${{ secrets.SONAR_ORGANIZATION }} \
             -Dsonar.projectKey=${{ secrets.SONAR_PROJECT_KEY }} \
             -Dsonar.sources=src/ \
-            -Dsonar.junit.reportsPath=target/surefire-reports/ \
-            -Dsonar.jacoco.reportsPath=target/jacoco.exec \
+            -Dsonar.tests=src/test/ \
+            -Dsonar.junit.reportPaths=target/surefire-reports \
+            -Dsonar.jacoco.reportPaths=target/jacoco.exec \
+            -Dsonar.java.coveragePlugin=jacoco \
             -Dsonar.java.checkstyle.reportPaths=target/checkstyle-result.xml \
-            -Dsonar.java.binaries=target/test-classes/com/visualpathit/account/controllerTest/
+            -Dsonar.java.binaries=target/classes \
+            -Dsonar.java.test.binaries=target/test-classes \
+            -X
         env:
           SONAR_SCANNER_OPTS: -Xmx1024m
 
-     # - name: SonarQube Quality Gate check
-      #  id: sonarqube-quality-gate-check
-       # uses: sonarsource/sonarqube-quality-gate-action@master
-        #timeout-minutes: 5
-        #env:
-         # SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          #SONAR_HOST_URL: ${{ secrets.SONAR_URL }}
+      - name: SonarQube Quality Gate check
+        id: sonarqube-quality-gate-check
+        uses: sonarsource/sonarqube-quality-gate-action@master
+        timeout-minutes: 5
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_URL }}
 
       - name: Upload test results
         uses: actions/upload-artifact@v4
@@ -67,4 +79,5 @@ jobs:
           path: |
             target/surefire-reports/
             target/checkstyle-result.xml
-          retention-days: 7 
+            target/site/jacoco/
+          retention-days: 7
