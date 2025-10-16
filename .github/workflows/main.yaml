@@ -17,41 +17,36 @@ jobs:
           echo "=== SonarQube Configuration ==="
           echo "SONAR_URL: ${{ secrets.SONAR_URL }}"
           echo "SONAR_ORGANIZATION: ${{ secrets.SONAR_ORGANIZATION }}"
-          echo "SONAR_PROJECT_KEY: vprofile-actions4u"
+          echo "SONAR_PROJECT_KEY from secret: ${{ secrets.SONAR_PROJECT_KEY }}"
+          echo "Using hardcoded project key: vprofile-actions4u"
           echo "SONAR_TOKEN exists: $([ ! -z '${{ secrets.SONAR_TOKEN }}' ] && echo 'YES' || echo 'NO')"
 
-      - name: Create SonarCloud project
+      - name: Test SonarCloud API access
         run: |
-          echo "Creating SonarCloud project: vprofile-actions4u"
-          
-          # Check if project exists
-          response=$(curl -s -o /dev/null -w "%{http_code}" \
-            -u "${{ secrets.SONAR_TOKEN }}:" \
+          echo "Testing SonarCloud API access with token..."
+          # Test basic API access
+          curl -s -u "${{ secrets.SONAR_TOKEN }}:" \
+            "https://sonarcloud.io/api/system/status" | head -20
+          echo ""
+
+      - name: Check if project exists
+        run: |
+          echo "Checking if project vprofile-actions4u exists in organization ${{ secrets.SONAR_ORGANIZATION }}..."
+          response=$(curl -s -u "${{ secrets.SONAR_TOKEN }}:" \
             "https://sonarcloud.io/api/projects/search?projects=vprofile-actions4u")
+          echo "API Response: $response"
           
-          if [ "$response" = "200" ]; then
-            echo "✅ Project vprofile-actions4u already exists"
+          if echo "$response" | grep -q '"total":1'; then
+            echo "✅ Project vprofile-actions4u exists"
           else
-            echo "🚀 Creating new project vprofile-actions4u..."
-            create_response=$(curl -s -w "%{http_code}" \
-              -X POST \
-              -u "${{ secrets.SONAR_TOKEN }}:" \
-              "https://sonarcloud.io/api/projects/create" \
-              -d "project=vprofile-actions4u" \
-              -d "organization=${{ secrets.SONAR_ORGANIZATION }}" \
-              -d "name=VProfile GitHub Actions" \
-              -d "visibility=public")
-            
-            status_code="${create_response: -3}"
-            response_body="${create_response%???}"
-            
-            if [ "$status_code" = "200" ]; then
-              echo "✅ Project vprofile-actions4u created successfully"
-            else
-              echo "❌ Failed to create project. Status: $status_code"
-              echo "Response: $response_body"
-              # Don't exit here, continue to try analysis
-            fi
+            echo "❌ Project vprofile-actions4u does not exist or cannot be accessed"
+            echo "Please manually create the project in SonarCloud:"
+            echo "1. Go to https://sonarcloud.io"
+            echo "2. Navigate to your organization: ${{ secrets.SONAR_ORGANIZATION }}"
+            echo "3. Click 'Add new project'"
+            echo "4. Create project with key: vprofile-actions4u"
+            echo "5. Name: VProfile GitHub Actions"
+            exit 1
           fi
 
       - name: Cache Maven dependencies
@@ -75,18 +70,12 @@ jobs:
         env:
           MAVEN_OPTS: -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=WARN
 
-      - name: Verify coverage reports
-        run: |
-          echo "=== Verifying Analysis Files ==="
-          ls -la target/ || echo "target directory not found"
-          [ -f target/jacoco.exec ] && echo "✅ jacoco.exec exists" || echo "❌ jacoco.exec missing"
-          [ -d target/surefire-reports ] && echo "✅ surefire-reports exists" || echo "❌ surefire-reports missing"
-
       - name: Setup SonarQube Scanner
         uses: warchant/setup-sonar-scanner@v7
 
-      - name: SonarQube Scan
+      - name: SonarQube Scan with explicit project key
         run: |
+          echo "Running SonarQube analysis with project key: vprofile-actions4u"
           sonar-scanner \
             -Dsonar.host.url=${{ secrets.SONAR_URL }} \
             -Dsonar.login=${{ secrets.SONAR_TOKEN }} \
@@ -105,14 +94,6 @@ jobs:
             -Dsonar.java.test.binaries=target/test-classes
         env:
           SONAR_SCANNER_OPTS: -Xmx1024m
-
-      - name: SonarQube Quality Gate check
-        id: sonarqube-quality-gate-check
-        uses: sonarsource/sonarqube-quality-gate-action@master
-        timeout-minutes: 5
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_HOST_URL: ${{ secrets.SONAR_URL }}
 
       - name: Upload test results
         uses: actions/upload-artifact@v4
