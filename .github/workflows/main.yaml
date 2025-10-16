@@ -78,8 +78,8 @@ jobs:
             -Dsonar.host.url=${{ secrets.SONAR_URL }} \
             -Dsonar.login=${{ secrets.SONAR_TOKEN }} \
             -Dsonar.organization=${{ secrets.SONAR_ORGANIZATION }} \
-            -Dsonar.projectKey=vprofile-actions4u2 \
-            -Dsonar.projectName="VProfile GitHub Actions" \
+            -Dsonar.projectKey=vprofile-actions4u \
+            -Dsonar.projectName="vprofile-actions4u" \
             -Dsonar.projectVersion=1.0 \
             -Dsonar.sources=src/main/java \
             -Dsonar.tests=src/test/java \
