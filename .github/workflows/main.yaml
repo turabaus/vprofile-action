@@ -17,9 +17,42 @@ jobs:
           echo "=== SonarQube Configuration ==="
           echo "SONAR_URL: ${{ secrets.SONAR_URL }}"
           echo "SONAR_ORGANIZATION: ${{ secrets.SONAR_ORGANIZATION }}"
-          echo "SONAR_PROJECT_KEY: ${{ secrets.SONAR_PROJECT_KEY }}"
-          echo "Actual project key: vproapp4u"
+          echo "SONAR_PROJECT_KEY: vproapp24"
           echo "SONAR_TOKEN exists: $([ ! -z '${{ secrets.SONAR_TOKEN }}' ] && echo 'YES' || echo 'NO')"
+
+      - name: Create SonarCloud project
+        run: |
+          echo "Creating SonarCloud project: vproapp24"
+          
+          # Check if project exists
+          response=$(curl -s -o /dev/null -w "%{http_code}" \
+            -u "${{ secrets.SONAR_TOKEN }}:" \
+            "https://sonarcloud.io/api/projects/search?projects=vproapp24")
+          
+          if [ "$response" = "200" ]; then
+            echo "✅ Project vproapp24 already exists"
+          else
+            echo "🚀 Creating new project vproapp24..."
+            create_response=$(curl -s -w "%{http_code}" \
+              -X POST \
+              -u "${{ secrets.SONAR_TOKEN }}:" \
+              "https://sonarcloud.io/api/projects/create" \
+              -d "project=vproapp24" \
+              -d "organization=${{ secrets.SONAR_ORGANIZATION }}" \
+              -d "name=VProfile Application" \
+              -d "visibility=public")
+            
+            status_code="${create_response: -3}"
+            response_body="${create_response%???}"
+            
+            if [ "$status_code" = "200" ]; then
+              echo "✅ Project vproapp24 created successfully"
+            else
+              echo "❌ Failed to create project. Status: $status_code"
+              echo "Response: $response_body"
+              # Don't exit here, continue to try analysis
+            fi
+          fi
 
       - name: Cache Maven dependencies
         uses: actions/cache@v4
@@ -52,13 +85,13 @@ jobs:
       - name: Setup SonarQube Scanner
         uses: warchant/setup-sonar-scanner@v7
 
-      - name: SonarQube Scan with explicit project key
+      - name: SonarQube Scan
         run: |
           sonar-scanner \
             -Dsonar.host.url=${{ secrets.SONAR_URL }} \
             -Dsonar.login=${{ secrets.SONAR_TOKEN }} \
             -Dsonar.organization=${{ secrets.SONAR_ORGANIZATION }} \
-            -Dsonar.projectKey=vproapp4u \
+            -Dsonar.projectKey=vproapp24 \
             -Dsonar.projectName="VProfile Application" \
             -Dsonar.projectVersion=1.0 \
             -Dsonar.sources=src/main/java \
@@ -77,8 +110,6 @@ jobs:
         id: sonarqube-quality-gate-check
         uses: sonarsource/sonarqube-quality-gate-action@master
         timeout-minutes: 5
-        with:
-          scanMetadataWaitTimeoutSec: 300
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_URL }}
