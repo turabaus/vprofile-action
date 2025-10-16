@@ -12,16 +12,22 @@ jobs:
       - name: Code checkout
         uses: actions/checkout@v4
 
-      - name: Validate SonarQube URL format
+      - name: Debug SonarQube configuration
         run: |
-          SONAR_URL="${{ secrets.SONAR_URL }}"
-          if [[ ! $SONAR_URL =~ ^https?:// ]]; then
-            echo "❌ ERROR: SONAR_URL must start with http:// or https://"
-            echo "Current value: $SONAR_URL"
-            echo "Please update the SONAR_URL secret in repository settings"
+          echo "=== SonarQube Configuration ==="
+          echo "SONAR_URL: ${{ secrets.SONAR_URL }}"
+          echo "SONAR_ORGANIZATION: ${{ secrets.SONAR_ORGANIZATION }}"
+          echo "SONAR_PROJECT_KEY: ${{ secrets.SONAR_PROJECT_KEY }}"
+          echo "SONAR_TOKEN length: ${#SECRETS.SONAR_TOKEN} characters"
+          
+          # Validate required secrets
+          if [[ -z "${{ secrets.SONAR_ORGANIZATION }}" ]]; then
+            echo "❌ ERROR: SONAR_ORGANIZATION is empty!"
             exit 1
-          else
-            echo "✅ SONAR_URL format is correct: $SONAR_URL"
+          fi
+          if [[ -z "${{ secrets.SONAR_PROJECT_KEY }}" ]]; then
+            echo "❌ ERROR: SONAR_PROJECT_KEY is empty!"
+            exit 1
           fi
 
       - name: Cache Maven dependencies
@@ -45,13 +51,12 @@ jobs:
         env:
           MAVEN_OPTS: -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=WARN
 
-      - name: Verify test reports exist
+      - name: Verify coverage reports
         run: |
-          echo "Checking for test reports..."
-          ls -la target/
-          [ -d target/surefire-reports ] && echo "✅ surefire-reports exists" || echo "❌ surefire-reports missing"
+          echo "=== Verifying Analysis Files ==="
+          ls -la target/ || echo "target directory not found"
           [ -f target/jacoco.exec ] && echo "✅ jacoco.exec exists" || echo "❌ jacoco.exec missing"
-          [ -f target/checkstyle-result.xml ] && echo "✅ checkstyle-result.xml exists" || echo "❌ checkstyle-result.xml missing"
+          [ -d target/surefire-reports ] && echo "✅ surefire-reports exists" || echo "❌ surefire-reports missing"
 
       - name: Setup SonarQube Scanner
         uses: warchant/setup-sonar-scanner@v7
@@ -63,8 +68,11 @@ jobs:
             -Dsonar.login=${{ secrets.SONAR_TOKEN }} \
             -Dsonar.organization=${{ secrets.SONAR_ORGANIZATION }} \
             -Dsonar.projectKey=${{ secrets.SONAR_PROJECT_KEY }} \
+            -Dsonar.projectName="VProfile Application" \
+            -Dsonar.projectVersion=1.0 \
             -Dsonar.sources=src/main/java \
             -Dsonar.tests=src/test/java \
+            -Dsonar.sourceEncoding=UTF-8 \
             -Dsonar.junit.reportPaths=target/surefire-reports \
             -Dsonar.jacoco.reportPaths=target/jacoco.exec \
             -Dsonar.java.coveragePlugin=jacoco \
@@ -73,14 +81,6 @@ jobs:
             -Dsonar.java.test.binaries=target/test-classes
         env:
           SONAR_SCANNER_OPTS: -Xmx1024m
-
-     # - name: SonarQube Quality Gate check
-      #  id: sonarqube-quality-gate-check
-       # uses: sonarsource/sonarqube-quality-gate-action@master
-        #timeout-minutes: 5
-        #env:
-         # SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          #SONAR_HOST_URL: ${{ secrets.SONAR_URL }}
 
       - name: Upload test results
         uses: actions/upload-artifact@v4
@@ -92,5 +92,3 @@ jobs:
             target/checkstyle-result.xml
             target/site/jacoco/
           retention-days: 7
-
-          ###
