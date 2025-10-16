@@ -12,6 +12,18 @@ jobs:
       - name: Code checkout
         uses: actions/checkout@v4
 
+      - name: Validate SonarQube URL format
+        run: |
+          SONAR_URL="${{ secrets.SONAR_URL }}"
+          if [[ ! $SONAR_URL =~ ^https?:// ]]; then
+            echo "❌ ERROR: SONAR_URL must start with http:// or https://"
+            echo "Current value: $SONAR_URL"
+            echo "Please update the SONAR_URL secret in repository settings"
+            exit 1
+          else
+            echo "✅ SONAR_URL format is correct: $SONAR_URL"
+          fi
+
       - name: Cache Maven dependencies
         uses: actions/cache@v4
         with:
@@ -37,39 +49,38 @@ jobs:
         run: |
           echo "Checking for test reports..."
           ls -la target/
-          ls -la target/surefire-reports/ || echo "No surefire-reports directory"
-          ls -la target/site/jacoco/ || echo "No jacoco directory"
-          [ -f target/jacoco.exec ] && echo "jacoco.exec exists" || echo "jacoco.exec missing"
+          [ -d target/surefire-reports ] && echo "✅ surefire-reports exists" || echo "❌ surefire-reports missing"
+          [ -f target/jacoco.exec ] && echo "✅ jacoco.exec exists" || echo "❌ jacoco.exec missing"
+          [ -f target/checkstyle-result.xml ] && echo "✅ checkstyle-result.xml exists" || echo "❌ checkstyle-result.xml missing"
 
       - name: Setup SonarQube Scanner
         uses: warchant/setup-sonar-scanner@v7
 
-      - name: SonarQube Scan (with debug)
+      - name: SonarQube Scan
         run: |
           sonar-scanner \
             -Dsonar.host.url=${{ secrets.SONAR_URL }} \
             -Dsonar.login=${{ secrets.SONAR_TOKEN }} \
             -Dsonar.organization=${{ secrets.SONAR_ORGANIZATION }} \
             -Dsonar.projectKey=${{ secrets.SONAR_PROJECT_KEY }} \
-            -Dsonar.sources=src/ \
-            -Dsonar.tests=src/test/ \
+            -Dsonar.sources=src/main/java \
+            -Dsonar.tests=src/test/java \
             -Dsonar.junit.reportPaths=target/surefire-reports \
             -Dsonar.jacoco.reportPaths=target/jacoco.exec \
             -Dsonar.java.coveragePlugin=jacoco \
             -Dsonar.java.checkstyle.reportPaths=target/checkstyle-result.xml \
             -Dsonar.java.binaries=target/classes \
-            -Dsonar.java.test.binaries=target/test-classes \
-            -X
+            -Dsonar.java.test.binaries=target/test-classes
         env:
           SONAR_SCANNER_OPTS: -Xmx1024m
 
-     # - name: SonarQube Quality Gate check
-      #  id: sonarqube-quality-gate-check
-       # uses: sonarsource/sonarqube-quality-gate-action@master
-        #timeout-minutes: 5
-        #env:
-         # SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          ##SONAR_HOST_URL: ${{ secrets.SONAR_URL }}
+      - name: SonarQube Quality Gate check
+        id: sonarqube-quality-gate-check
+        uses: sonarsource/sonarqube-quality-gate-action@master
+        timeout-minutes: 5
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_URL }}
 
       - name: Upload test results
         uses: actions/upload-artifact@v4
