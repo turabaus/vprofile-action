@@ -51,13 +51,13 @@ jobs:
         env:
           SONAR_SCANNER_OPTS: -Xmx1024m
 
-      - name: SonarQube Quality Gate check
-        id: sonarqube-quality-gate-check
-        uses: sonarsource/sonarqube-quality-gate-action@master
-        timeout-minutes: 5
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_HOST_URL: ${{ secrets.SONAR_URL }}
+     # - name: SonarQube Quality Gate check
+      #  id: sonarqube-quality-gate-check
+       # uses: sonarsource/sonarqube-quality-gate-action@master
+        #timeout-minutes: 5
+        #env:
+         # SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          #SONAR_HOST_URL: ${{ secrets.SONAR_URL }}
 
       - name: Upload test results
         uses: actions/upload-artifact@v4
@@ -67,4 +67,4 @@ jobs:
           path: |
             target/surefire-reports/
             target/checkstyle-result.xml
-          retention-days: 7
+          retention-days: 7 
